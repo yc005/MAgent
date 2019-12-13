@@ -20,14 +20,27 @@ def get_config(map_size):
          'step_reward': -0.005,  'kill_reward': 5, 'dead_penalty': -0.1, 'attack_penalty': -0.1,
          })
 
+    big = cfg.register_agent_type(
+        "big",
+        {'width': 2, 'length': 2, 'hp': 20, 'speed': 1,
+         'view_range': gw.CircleRange(10), 'attack_range': gw.CircleRange(3),
+         'damage': 3, 'step_recover': 0.1,
+
+         'step_reward': -0.005, 'kill_reward': 3, 'dead_penalty': -0.2, 'attack_penalty': -0.05,
+         })
+
     g0 = cfg.add_group(small)
-    g1 = cfg.add_group(small)
+    g1 = cfg.add_group(big)
+    # g2 = cfg.add_group(small)
 
     a = gw.AgentSymbol(g0, index='any')
     b = gw.AgentSymbol(g1, index='any')
+    # c = gw.AgentSymbol(g2, index='any')
 
     # reward shaping to encourage attack
     cfg.add_reward_rule(gw.Event(a, 'attack', b), receiver=a, value=0.2)
     cfg.add_reward_rule(gw.Event(b, 'attack', a), receiver=b, value=0.2)
+    # cfg.add_reward_rule(gw.Event(c, 'attack', b), receiver=c, value=0.2)
+    # cfg.add_reward_rule(gw.Event(b, 'attack', c), receiver=b, value=0.2)
 
     return cfg
