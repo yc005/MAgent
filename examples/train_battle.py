@@ -11,18 +11,67 @@ import numpy as np
 
 import magent
 
+
+def load_config(map_size):
+    gw = magent.gridworld
+    cfg = gw.Config()
+
+    cfg.set({"map_width": map_size, "map_height": map_size})
+    cfg.set({"minimap_mode": True})
+    cfg.set({"embedding_size": 10})
+
+    troops = cfg.register_agent_type(
+        "troops",
+        {'width': 1, 'length': 1, 'hp': 10, 'speed': 2,
+         'view_range': gw.CircleRange(6), 'attack_range': gw.CircleRange(1.5),
+         'damage': 2, 'step_recover': 0.1,
+
+         'step_reward': -0.005,  'kill_reward': 5, 'dead_penalty': -0.1, 'attack_penalty': -0.1,
+         })
+
+    tanks = cfg.register_agent_type(
+        "tanks",
+        {'width': 2, 'length': 2, 'hp': 20, 'speed': 1,
+         'view_range': gw.CircleRange(10), 'attack_range': gw.CircleRange(3),
+         'damage': 3, 'step_recover': 0.1,
+
+         'step_reward': -0.005, 'kill_reward': 3, 'dead_penalty': -0.2, 'attack_penalty': -0.05,
+         })
+
+    rtroops = cfg.add_group(troops)
+    rtanks = cfg.add_group(tanks)
+    ltroops = cfg.add_group(troops)
+    ltanks = cfg.add_group(tanks)
+
+    r_troops = gw.AgentSymbol(rtroops, index='any')
+    r_tanks = gw.AgentSymbol(rtanks, index='any')
+    l_troops = gw.AgentSymbol(ltroops, index='any')
+    l_tanks = gw.AgentSymbol(ltanks, index='any')
+
+    # reward shaping to encourage attack
+    cfg.add_reward_rule(gw.Event(l_troops, 'attack', r_troops), receiver=l_troops, value=0.2)
+    cfg.add_reward_rule(gw.Event(r_troops, 'attack', l_troops), receiver=r_troops, value=0.2)
+    cfg.add_reward_rule(gw.Event(l_tanks, 'attack', r_tanks), receiver=l_tanks, value=0.2)
+    cfg.add_reward_rule(gw.Event(r_tanks, 'attack', l_tanks), receiver=r_tanks, value=0.2)
+    cfg.add_reward_rule(gw.Event(l_troops, 'attack', r_tanks), receiver=l_troops, value=0.2)
+    cfg.add_reward_rule(gw.Event(r_tanks, 'attack', l_troops), receiver=r_tanks, value=0.2)
+    cfg.add_reward_rule(gw.Event(l_tanks, 'attack', r_troops), receiver=l_tanks, value=0.2)
+    cfg.add_reward_rule(gw.Event(r_troops, 'attack', l_tanks), receiver=r_troops, value=0.2)
+
+    return cfg
+
+
 r_troopsID = 0
 r_tanksID = 1
 l_troopsID = 2
 l_tanksID = 3
+
+
 def generate_map(env, map_size, handles):
     """ generate a map, which consists of two squares of agents"""
     width = height = map_size
     init_num = map_size * map_size * 0.02
     gap = 3
-
-    # global leftID, rightID
-    # leftID, rightID = rightID, leftID
 
     # left
     n = init_num
@@ -166,14 +215,14 @@ if __name__ == "__main__":
     magent.utility.init_logger(args.name)
 
     # init the game
-    env = magent.GridWorld("battle", map_size=args.map_size)
+    env = magent.GridWorld(load_config(args.map_size))
     env.set_render_dir("build/render")
 
     # two groups of agents
     handles = env.get_handles()
 
     # sample eval observation set
-    eval_obs = [None, None, None, None]
+    eval_obs = [None for _ in range(len(handles))]
     if args.eval:
         print("sample eval set...")
         env.reset()
@@ -204,7 +253,7 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     # init models
-    names = [args.name + "-r-troops", args.name + "-r-tanks", args.name + "-l-troops", args.name + "-l-tanks"]
+    names = [args.name + "-r0", args.name + "-r1", args.name + "-l0", args.name + "-l1"]
     models = []
 
     for i in range(len(names)):
