@@ -11,33 +11,50 @@ import numpy as np
 
 import magent
 
-leftID, rightID = 0, 1
+r_troopsID = 0
+r_tanksID = 1
+l_troopsID = 2
+l_tanksID = 3
 def generate_map(env, map_size, handles):
     """ generate a map, which consists of two squares of agents"""
     width = height = map_size
-    init_num = map_size * map_size * 0.04
+    init_num = map_size * map_size * 0.02
     gap = 3
 
-    global leftID, rightID
-    leftID, rightID = rightID, leftID
+    # global leftID, rightID
+    # leftID, rightID = rightID, leftID
 
     # left
     n = init_num
     side = int(math.sqrt(n)) * 2
-    pos = []
+    pos_troops = []
+    pos_tanks = []
+    pos_flag = True
     for x in range(width//2 - gap - side, width//2 - gap - side + side, 2):
         for y in range((height - side)//2, (height - side)//2 + side, 2):
-            pos.append([x, y, 0])
-    env.add_agents(handles[leftID], method="custom", pos=pos)
+            if pos_flag:
+                pos_troops.append([x, y, 0])
+            else:
+                pos_tanks.append([x, y, 0])
+            pos_flag = not pos_flag
+    env.add_agents(handles[l_troopsID], method="custom", pos=pos_troops)
+    env.add_agents(handles[l_tanksID], method="custom", pos=pos_tanks)
 
     # right
     n = init_num
     side = int(math.sqrt(n)) * 2
-    pos = []
+    pos_troops = []
+    pos_tanks = []
+    pos_flag = True
     for x in range(width//2 + gap, width//2 + gap + side, 2):
         for y in range((height - side)//2, (height - side)//2 + side, 2):
-            pos.append([x, y, 0])
-    env.add_agents(handles[rightID], method="custom", pos=pos)
+            if pos_flag:
+                pos_troops.append([x, y, 0])
+            else:
+                pos_tanks.append([x, y, 0])
+            pos_flag = not pos_flag
+    env.add_agents(handles[r_troopsID], method="custom", pos=pos_troops)
+    env.add_agents(handles[r_tanksID], method="custom", pos=pos_tanks)
 
 
 def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
@@ -156,7 +173,7 @@ if __name__ == "__main__":
     handles = env.get_handles()
 
     # sample eval observation set
-    eval_obs = [None, None]
+    eval_obs = [None, None, None, None]
     if args.eval:
         print("sample eval set...")
         env.reset()
@@ -187,7 +204,7 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     # init models
-    names = [args.name + "-l", args.name + "-r"]
+    names = [args.name + "-r-troops", args.name + "-r-tanks", args.name + "-l-troops", args.name + "-l-tanks"]
     models = []
 
     for i in range(len(names)):
