@@ -33,7 +33,7 @@ def load_config(map_size):
         "tanks",
         {'width': 2, 'length': 2, 'hp': 20, 'speed': 1,
          'view_range': gw.CircleRange(10), 'attack_range': gw.CircleRange(3),
-         'damage': 3, 'step_recover': 0.1,
+         'damage': 4, 'step_recover': 0.1,
 
          'step_reward': -0.005, 'kill_reward': 3, 'dead_penalty': -0.2, 'attack_penalty': -0.05,
          })
@@ -58,6 +58,11 @@ def load_config(map_size):
     cfg.add_reward_rule(gw.Event(l_tanks, 'attack', r_troops), receiver=l_tanks, value=0.2)
     cfg.add_reward_rule(gw.Event(r_troops, 'attack', l_tanks), receiver=r_troops, value=0.2)
 
+    cfg.add_reward_rule(gw.Event(l_troops, 'attack', l_tanks), receiver=l_troops, value=-10)
+    cfg.add_reward_rule(gw.Event(l_tanks, 'attack', l_troops), receiver=l_tanks, value=-10)
+    cfg.add_reward_rule(gw.Event(r_tanks, 'attack', r_troops), receiver=r_tanks, value=-10)
+    cfg.add_reward_rule(gw.Event(r_troops, 'attack', r_tanks), receiver=r_troops, value=-10)
+
     return cfg
 
 
@@ -78,14 +83,14 @@ def generate_map(env, map_size, handles):
     side = int(math.sqrt(n)) * 2
     pos_troops = []
     pos_tanks = []
-    pos_flag = True
+    pos_flag = 0
     for x in range(width//2 - gap - side, width//2 - gap - side + side, 2):
         for y in range((height - side)//2, (height - side)//2 + side, 2):
-            if pos_flag:
+            if pos_flag % 3 != 0:
                 pos_troops.append([x, y, 0])
             else:
                 pos_tanks.append([x, y, 0])
-            pos_flag = not pos_flag
+            pos_flag += 1
     env.add_agents(handles[l_troopsID], method="custom", pos=pos_troops)
     env.add_agents(handles[l_tanksID], method="custom", pos=pos_tanks)
 
@@ -94,14 +99,14 @@ def generate_map(env, map_size, handles):
     side = int(math.sqrt(n)) * 2
     pos_troops = []
     pos_tanks = []
-    pos_flag = True
+    pos_flag = 0
     for x in range(width//2 + gap, width//2 + gap + side, 2):
         for y in range((height - side)//2, (height - side)//2 + side, 2):
-            if pos_flag:
+            if pos_flag % 3 != 0:
                 pos_troops.append([x, y, 0])
             else:
                 pos_tanks.append([x, y, 0])
-            pos_flag = not pos_flag
+            pos_flag += 1
     env.add_agents(handles[r_troopsID], method="custom", pos=pos_troops)
     env.add_agents(handles[r_tanksID], method="custom", pos=pos_tanks)
 
@@ -177,20 +182,35 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
     sample_time = time.time() - start_time
     print("steps: %d,  total time: %.2f,  step average %.2f" % (step_ct, sample_time, sample_time / step_ct))
 
-    # train
+    # # train
+    # total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
+    # if train:
+    #     print("===== train =====")
+    #     start_time = time.time()
+    #
+    #     # train models in parallel
+    #     for i in range(n):
+    #         models[i].train(print_every=1000, block=False)
+    #     for i in range(n):
+    #         total_loss[i], value[i] = models[i].fetch_train()
+    #
+    #     train_time = time.time() - start_time
+    #     print("train_time %.2f" % train_time)
+
     total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
     if train:
         print("===== train =====")
         start_time = time.time()
 
-        # train models in parallel
-        for i in range(n):
+        # train first half (right) models in parallel
+        for i in range(round(n / 2)):
             models[i].train(print_every=1000, block=False)
-        for i in range(n):
+        for i in range(round(n / 2)):
             total_loss[i], value[i] = models[i].fetch_train()
 
         train_time = time.time() - start_time
         print("train_time %.2f" % train_time)
+
 
     def round_list(l): return [round(x, 2) for x in l]
     return round_list(total_loss), nums, round_list(total_reward), round_list(value)
