@@ -287,11 +287,18 @@ if __name__ == "__main__":
     # load if
     loaddir = 'data/v1.3model'
     savedir = 'save_model'
-    start_from = 1999
-    print("load ... %d" % start_from)
+    if args.load_from is not None:
+        start_from = args.load_from
+        print("load ... %d" % start_from)
+        models[2].load(savedir, start_from)
+        models[3].load(savedir, start_from)
+    else:
+        start_from = 1999
 
-    models[0].load(loaddir, start_from)
-    models[1].load(loaddir, start_from)
+    print("loading fixed model")
+
+    models[0].load(loaddir, 1999)
+    models[1].load(loaddir, 1999)
 
     # print state info
     print(args)
