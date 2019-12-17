@@ -1,5 +1,5 @@
-# v1.3.1
-# DQN vs DQN
+# v1.3.2
+# DQN vs trained DQN
 
 """
 Train battle, two models in two processes
@@ -186,33 +186,33 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
     print("steps: %d,  total time: %.2f,  step average %.2f" % (step_ct, sample_time, sample_time / step_ct))
 
     # train
-    total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
-    if train:
-        print("===== train =====")
-        start_time = time.time()
-
-        # train models in parallel
-        for i in range(n):
-            models[i].train(print_every=1000, block=False)
-        for i in range(n):
-            total_loss[i], value[i] = models[i].fetch_train()
-
-        train_time = time.time() - start_time
-        print("train_time %.2f" % train_time)
-
     # total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
     # if train:
     #     print("===== train =====")
     #     start_time = time.time()
     #
-    #     # train first half (right) models in parallel
-    #     for i in range(round(n / 2)):
+    #     # train models in parallel
+    #     for i in range(n):
     #         models[i].train(print_every=1000, block=False)
-    #     for i in range(round(n / 2)):
+    #     for i in range(n):
     #         total_loss[i], value[i] = models[i].fetch_train()
     #
     #     train_time = time.time() - start_time
     #     print("train_time %.2f" % train_time)
+
+    total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
+    if train:
+        print("===== train =====")
+        start_time = time.time()
+
+        # train first half (right) models in parallel
+        for i in range(round(n / 2), n):
+            models[i].train(print_every=1000, block=False)
+        for i in range(round(n / 2), n):
+            total_loss[i], value[i] = models[i].fetch_train()
+
+        train_time = time.time() - start_time
+        print("train_time %.2f" % train_time)
 
 
     def round_list(l): return [round(x, 2) for x in l]
@@ -285,14 +285,13 @@ if __name__ == "__main__":
         models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
 
     # load if
+    loaddir = 'data/v1.3model'
     savedir = 'save_model'
-    if args.load_from is not None:
-        start_from = args.load_from
-        print("load ... %d" % start_from)
-        for model in models:
-            model.load(savedir, start_from)
-    else:
-        start_from = 0
+    start_from = 1999
+    print("load ... %d" % start_from)
+
+    models[0].load(loaddir, start_from)
+    models[1].load(loaddir, start_from)
 
     # print state info
     print(args)
