@@ -1,6 +1,4 @@
-# v1.3.1
-# DQN vs DQN
-
+# load model
 """
 Train battle, two models in two processes
 """
@@ -179,40 +177,40 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
                   (step_ct, nums, np.around(step_reward, 2), np.around(total_reward, 2)))
 
         step_ct += 1
-        if step_ct > 550:
+        if step_ct > 2000:
             break
 
     sample_time = time.time() - start_time
     print("steps: %d,  total time: %.2f,  step average %.2f" % (step_ct, sample_time, sample_time / step_ct))
 
-    # train
-    total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
-    if train:
-        print("===== train =====")
-        start_time = time.time()
-
-        # train models in parallel
-        for i in range(n):
-            models[i].train(print_every=1000, block=False)
-        for i in range(n):
-            total_loss[i], value[i] = models[i].fetch_train()
-
-        train_time = time.time() - start_time
-        print("train_time %.2f" % train_time)
-
+    # # train
     # total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
     # if train:
     #     print("===== train =====")
     #     start_time = time.time()
     #
-    #     # train first half (right) models in parallel
-    #     for i in range(round(n / 2)):
+    #     # train models in parallel
+    #     for i in range(n):
     #         models[i].train(print_every=1000, block=False)
-    #     for i in range(round(n / 2)):
+    #     for i in range(n):
     #         total_loss[i], value[i] = models[i].fetch_train()
     #
     #     train_time = time.time() - start_time
     #     print("train_time %.2f" % train_time)
+
+    total_loss, value = [0 for _ in range(n)], [0 for _ in range(n)]
+    if train:
+        print("===== train =====")
+        start_time = time.time()
+
+        # train first half (right) models in parallel
+        for i in range(round(n / 2)):
+            models[i].train(print_every=1000, block=False)
+        for i in range(round(n / 2)):
+            total_loss[i], value[i] = models[i].fetch_train()
+
+        train_time = time.time() - start_time
+        print("train_time %.2f" % train_time)
 
 
     def round_list(l): return [round(x, 2) for x in l]
@@ -223,8 +221,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--save_every", type=int, default=5)
     parser.add_argument("--render_every", type=int, default=10)
-    parser.add_argument("--n_round", type=int, default=2000)
-    parser.add_argument("--render", action="store_true")
+    parser.add_argument("--n_round", type=int, default=1)
+    parser.add_argument("--render", action="store_true", default=True)
     parser.add_argument("--load_from", type=int)
     parser.add_argument("--train", action="store_true")
     parser.add_argument("--map_size", type=int, default=125)
@@ -285,7 +283,7 @@ if __name__ == "__main__":
         models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
 
     # load if
-    savedir = 'save_model'
+    savedir = "data/v1.3model"
     if args.load_from is not None:
         start_from = args.load_from
         print("load ... %d" % start_from)
