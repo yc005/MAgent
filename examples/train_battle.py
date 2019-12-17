@@ -1,3 +1,6 @@
+# v1.3.0
+# Initial version of training: Random vs DQN
+
 """
 Train battle, two models in two processes
 """

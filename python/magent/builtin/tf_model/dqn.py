@@ -15,7 +15,7 @@ class DeepQNetwork(TFBaseModel):
                  train_freq=1, target_update=2000, memory_size=2 ** 20, eval_obs=None,
                  use_dueling=True, use_double=True, use_conv=True,
                  custom_view_space=None, custom_feature_space=None,
-                 num_gpu=1, infer_batch_size=8192, network_type=0):
+                 num_gpu=4, infer_batch_size=8192, network_type=0):
         """init a model
 
         Parameters

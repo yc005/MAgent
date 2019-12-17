@@ -622,6 +622,16 @@ void GridWorld::step(int *done) {
             live_ct++;
     }
     *done = (int)(live_ct < groups.size());
+//    for (int i = 0; i < int(groups.size() / 2); i++) {
+//        if (groups[i].get_alive_num() > 0)
+//            break;
+//        *done = (int)true;
+//    }
+//    for (int i = int(groups.size() / 2); i < groups.size(); i++) {
+//        if (groups[i].get_alive_num() > 0)
+//            break;
+//        *done = (int)true;
+//    }
 
     size_t rule_size = reward_rules.size();
     for (int i = 0; i < rule_size; i++) {
