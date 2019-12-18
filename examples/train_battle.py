@@ -1,5 +1,6 @@
-# v1.3.2
-# DQN vs trained DQN
+# v1.4
+# DQN vs DQN
+# modified attributes of troops and tanks
 
 """
 Train battle, two models in two processes
@@ -29,16 +30,16 @@ def load_config(map_size):
          'view_range': gw.CircleRange(6), 'attack_range': gw.CircleRange(1.5),
          'damage': 2, 'step_recover': 0.1,
 
-         'step_reward': -0.005,  'kill_reward': 5, 'dead_penalty': -0.1, 'attack_penalty': -0.1,
+         'step_reward': -0.005,  'kill_reward': 0, 'dead_penalty': -0.4, 'attack_penalty': -0.05,
          })
 
     tanks = cfg.register_agent_type(
         "tanks",
-        {'width': 2, 'length': 2, 'hp': 20, 'speed': 1,
-         'view_range': gw.CircleRange(10), 'attack_range': gw.CircleRange(3),
-         'damage': 4, 'step_recover': 0.1,
+        {'width': 2, 'length': 2, 'hp': 40, 'speed': 1.5,
+         'view_range': gw.CircleRange(6), 'attack_range': gw.CircleRange(3),
+         'damage': 7, 'step_recover': 0.1,
 
-         'step_reward': -0.005, 'kill_reward': 3, 'dead_penalty': -0.2, 'attack_penalty': -0.05,
+         'step_reward': -0.005, 'kill_reward': 0, 'dead_penalty': -1.6, 'attack_penalty': -0.1,
          })
 
     rtroops = cfg.add_group(troops)
@@ -89,7 +90,7 @@ def generate_map(env, map_size, handles):
     pos_flag = 0
     for x in range(width//2 - gap - side, width//2 - gap - side + side, 2):
         for y in range((height - side)//2, (height - side)//2 + side, 2):
-            if pos_flag % 3 != 0:
+            if pos_flag % 6 != 0:
                 pos_troops.append([x, y, 0])
             else:
                 pos_tanks.append([x, y, 0])
@@ -105,7 +106,7 @@ def generate_map(env, map_size, handles):
     pos_flag = 0
     for x in range(width//2 + gap, width//2 + gap + side, 2):
         for y in range((height - side)//2, (height - side)//2 + side, 2):
-            if pos_flag % 3 != 0:
+            if pos_flag % 6 != 0:
                 pos_troops.append([x, y, 0])
             else:
                 pos_tanks.append([x, y, 0])
@@ -206,14 +207,19 @@ def play_a_round(env, map_size, handles, models, print_every, train=True, render
         start_time = time.time()
 
         # train first half (right) models in parallel
-        for i in range(round(n / 2), n):
+        # for i in range(round(n / 2), n):
+        #     models[i].train(print_every=1000, block=False)
+        # for i in range(round(n / 2), n):
+        #     total_loss[i], value[i] = models[i].fetch_train()
+
+        # train models in parallel
+        for i in range(n):
             models[i].train(print_every=1000, block=False)
-        for i in range(round(n / 2), n):
+        for i in range(n):
             total_loss[i], value[i] = models[i].fetch_train()
 
         train_time = time.time() - start_time
         print("train_time %.2f" % train_time)
-
 
     def round_list(l): return [round(x, 2) for x in l]
     return round_list(total_loss), nums, round_list(total_reward), round_list(value)
@@ -285,20 +291,14 @@ if __name__ == "__main__":
         models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
 
     # load if
-    loaddir = 'data/v1.3model'
     savedir = 'save_model'
     if args.load_from is not None:
         start_from = args.load_from
         print("load ... %d" % start_from)
-        models[2].load(savedir, start_from)
-        models[3].load(savedir, start_from)
+        for model in models:
+            model.load(savedir, start_from)
     else:
-        start_from = 1999
-
-    print("loading fixed model")
-
-    models[0].load(loaddir, 1999)
-    models[1].load(loaddir, 1999)
+        start_from = 0
 
     # print state info
     print(args)
