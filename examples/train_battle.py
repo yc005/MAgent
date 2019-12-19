@@ -1,6 +1,6 @@
-# v1.4.2
-# DRQN vs DQN
-# based on parameters of v1.4.1
+# v1.4.1
+# DQN vs DQN
+# modified attributes of troops and tanks
 
 """
 Train battle, two models in two processes
@@ -266,30 +266,30 @@ if __name__ == "__main__":
     target_update = 1200
     train_freq = 5
 
+    if args.alg == 'dqn':
+        from magent.builtin.tf_model import DeepQNetwork
+        RLModel = DeepQNetwork
+        base_args = {'batch_size': batch_size,
+                     'memory_size': 2 ** 20, 'learning_rate': 1e-4,
+                     'target_update': target_update, 'train_freq': train_freq}
+    elif args.alg == 'drqn':
+        from magent.builtin.tf_model import DeepRecurrentQNetwork
+        RLModel = DeepRecurrentQNetwork
+        base_args = {'batch_size': batch_size / unroll_step, 'unroll_step': unroll_step,
+                     'memory_size': 8 * 625, 'learning_rate': 1e-4,
+                     'target_update': target_update, 'train_freq': train_freq}
+    elif args.alg == 'a2c':
+        # see train_against.py to know how to use a2c
+        raise NotImplementedError
+
     # init models
     names = [args.name + "-r0", args.name + "-r1", args.name + "-l0", args.name + "-l1"]
     models = []
 
     for i in range(len(names)):
         model_args = {'eval_obs': eval_obs[i]}
-        if i < 2:  # right side
-            from magent.builtin.tf_model import DeepQNetwork
-
-            RLModel = DeepQNetwork
-            base_args = {'batch_size': batch_size,
-                         'memory_size': 2 ** 20, 'learning_rate': 1e-4,
-                         'target_update': target_update, 'train_freq': train_freq}
-            model_args.update(base_args)
-            models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
-        else:
-            from magent.builtin.tf_model import DeepRecurrentQNetwork
-
-            RLModel = DeepRecurrentQNetwork
-            base_args = {'batch_size': batch_size / unroll_step, 'unroll_step': unroll_step,
-                         'memory_size': 8 * 625, 'learning_rate': 1e-4,
-                         'target_update': target_update, 'train_freq': train_freq}
-            model_args.update(base_args)
-            models.append(magent.ProcessingModel(env, handles[i], names[i], 20000 + i, 1000, RLModel, **model_args))
+        model_args.update(base_args)
+        models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
 
     # load if
     savedir = 'save_model'
