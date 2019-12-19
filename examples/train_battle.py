@@ -1,4 +1,4 @@
-# v1.4
+# v1.4.1
 # DQN vs DQN
 # modified attributes of troops and tanks
 
@@ -53,14 +53,15 @@ def load_config(map_size):
     l_tanks = gw.AgentSymbol(ltanks, index='any')
 
     # reward shaping to encourage attack
-    cfg.add_reward_rule(gw.Event(l_troops, 'attack', r_troops), receiver=l_troops, value=0.2)
-    cfg.add_reward_rule(gw.Event(r_troops, 'attack', l_troops), receiver=r_troops, value=0.2)
-    cfg.add_reward_rule(gw.Event(l_tanks, 'attack', r_tanks), receiver=l_tanks, value=0.2)
-    cfg.add_reward_rule(gw.Event(r_tanks, 'attack', l_tanks), receiver=r_tanks, value=0.2)
-    cfg.add_reward_rule(gw.Event(l_troops, 'attack', r_tanks), receiver=l_troops, value=0.2)
-    cfg.add_reward_rule(gw.Event(r_tanks, 'attack', l_troops), receiver=r_tanks, value=0.2)
-    cfg.add_reward_rule(gw.Event(l_tanks, 'attack', r_troops), receiver=l_tanks, value=0.2)
-    cfg.add_reward_rule(gw.Event(r_troops, 'attack', l_tanks), receiver=r_troops, value=0.2)
+    attack_reward = 1
+    cfg.add_reward_rule(gw.Event(l_troops, 'attack', r_troops), receiver=l_troops, value=attack_reward)
+    cfg.add_reward_rule(gw.Event(r_troops, 'attack', l_troops), receiver=r_troops, value=attack_reward)
+    cfg.add_reward_rule(gw.Event(l_tanks, 'attack', r_tanks), receiver=l_tanks, value=attack_reward)
+    cfg.add_reward_rule(gw.Event(r_tanks, 'attack', l_tanks), receiver=r_tanks, value=attack_reward)
+    cfg.add_reward_rule(gw.Event(l_troops, 'attack', r_tanks), receiver=l_troops, value=attack_reward)
+    cfg.add_reward_rule(gw.Event(r_tanks, 'attack', l_troops), receiver=r_tanks, value=attack_reward)
+    cfg.add_reward_rule(gw.Event(l_tanks, 'attack', r_troops), receiver=l_tanks, value=attack_reward)
+    cfg.add_reward_rule(gw.Event(r_troops, 'attack', l_tanks), receiver=r_troops, value=attack_reward)
 
     cfg.add_reward_rule(gw.Event(l_troops, 'attack', l_tanks), receiver=l_troops, value=-10)
     cfg.add_reward_rule(gw.Event(l_tanks, 'attack', l_troops), receiver=l_tanks, value=-10)
