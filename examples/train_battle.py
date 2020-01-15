@@ -1,6 +1,6 @@
-# v1.4.3
-# a2c vs DQN
-# right is a2c, left is dqn
+# v1.4.1
+# DQN vs DQN
+# modified attributes of troops and tanks
 
 """
 Train battle, two models in two processes
@@ -14,6 +14,7 @@ import math
 import numpy as np
 
 import magent
+
 
 def load_config(map_size):
     gw = magent.gridworld
@@ -115,7 +116,7 @@ def generate_map(env, map_size, handles):
     env.add_agents(handles[r_tanksID], method="custom", pos=pos_tanks)
 
 
-def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=True, render=False, eps=None):
+def play_a_round(env, map_size, handles, models, print_every, train=True, render=False, eps=None):
     """play a ground and train"""
     env.reset()
     generate_map(env, map_size, handles)
@@ -214,14 +215,9 @@ def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=Tru
 
         # train models in parallel
         for i in range(n):
-            if rlmodels[i] != AdvantageActorCritic:
-                models[i].train(print_every=1000, block=False)
-            else:
-                total_loss_list, value[i] = models[i].train(1000)
-                total_loss[i] = total_loss_list[1]
+            models[i].train(print_every=1000, block=False)
         for i in range(n):
-            if rlmodels[i] != AdvantageActorCritic:
-                total_loss[i], value[i] = models[i].fetch_train()
+            total_loss[i], value[i] = models[i].fetch_train()
 
         train_time = time.time() - start_time
         print("train_time %.2f" % train_time)
@@ -270,59 +266,30 @@ if __name__ == "__main__":
     target_update = 1200
     train_freq = 5
 
-    # if args.alg == 'dqn':
-    #     from magent.builtin.tf_model import DeepQNetwork
-    #     RLModel = DeepQNetwork
-    #     # RLModels.append(RLModel)
-    #     base_args = {'batch_size': batch_size,
-    #                  'memory_size': 2 ** 20, 'learning_rate': 1e-4,
-    #                  'target_update': target_update, 'train_freq': train_freq}
-    # elif args.alg == 'drqn':
-    #     from magent.builtin.tf_model import DeepRecurrentQNetwork
-    #     RLModel = DeepRecurrentQNetwork
-    #     # RLModels.append(RLModel)
-    #     base_args = {'batch_size': batch_size / unroll_step, 'unroll_step': unroll_step,
-    #                  'memory_size': 8 * 625, 'learning_rate': 1e-4,
-    #                  'target_update': target_update, 'train_freq': train_freq}
-    # elif args.alg == 'a2c':
-    #     # see train_against.py to know how to use a2c
-    #     from magent.builtin.tf_model import AdvantageActorCritic
-    #     RLModel = AdvantageActorCritic
-    #     # RLModels.append(RLModel)
-    #     step_batch_size = 10 * args.map_size * args.map_size * 0.04
-    #     base_args = {'learning_rate': 1e-4}
-    #
-    # RLModels = [AdvantageActorCritic, AdvantageActorCritic, AdvantageActorCritic, AdvantageActorCritic]
+    if args.alg == 'dqn':
+        from magent.builtin.tf_model import DeepQNetwork
+        RLModel = DeepQNetwork
+        base_args = {'batch_size': batch_size,
+                     'memory_size': 2 ** 20, 'learning_rate': 1e-4,
+                     'target_update': target_update, 'train_freq': train_freq}
+    elif args.alg == 'drqn':
+        from magent.builtin.tf_model import DeepRecurrentQNetwork
+        RLModel = DeepRecurrentQNetwork
+        base_args = {'batch_size': batch_size / unroll_step, 'unroll_step': unroll_step,
+                     'memory_size': 8 * 625, 'learning_rate': 1e-4,
+                     'target_update': target_update, 'train_freq': train_freq}
+    elif args.alg == 'a2c':
+        # see train_against.py to know how to use a2c
+        raise NotImplementedError
 
     # init models
     names = [args.name + "-r0", args.name + "-r1", args.name + "-l0", args.name + "-l1"]
     models = []
-    RLModels = []
 
     for i in range(len(names)):
         model_args = {'eval_obs': eval_obs[i]}
-        if i < len(names) / 2:
-            from magent.builtin.tf_model import AdvantageActorCritic
-
-            RLModel = AdvantageActorCritic
-            # RLModels.append(RLModel)
-            step_batch_size = 10 * args.map_size * args.map_size * 0.04
-            base_args = {'learning_rate': 1e-4}
-            RLModels.append(RLModel)
-            model_args.update(base_args)
-            models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
-        else:
-            from magent.builtin.tf_model import DeepQNetwork
-
-            RLModel = DeepQNetwork
-            # RLModels.append(RLModel)
-            base_args = {'batch_size': batch_size,
-                         'memory_size': 2 ** 20, 'learning_rate': 1e-4,
-                         'target_update': target_update, 'train_freq': train_freq}
-            RLModels.append(RLModel)
-            model_args.update(base_args)
-            models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
-
+        model_args.update(base_args)
+        models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
 
     # load if
     savedir = 'save_model'
@@ -344,7 +311,7 @@ if __name__ == "__main__":
     for k in range(start_from, start_from + args.n_round):
         tic = time.time()
         eps = magent.utility.piecewise_decay(k, [0, 700, 1400], [1, 0.2, 0.05]) if not args.greedy else 0
-        loss, num, reward, value = play_a_round(env, args.map_size, handles, models,RLModels,
+        loss, num, reward, value = play_a_round(env, args.map_size, handles, models,
                                                 train=args.train, print_every=50,
                                                 render=args.render or (k+1) % args.render_every == 0,
                                                 eps=eps)  # for e-greedy
