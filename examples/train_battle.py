@@ -115,7 +115,7 @@ def generate_map(env, map_size, handles):
     env.add_agents(handles[r_tanksID], method="custom", pos=pos_tanks)
 
 
-def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=True, render=False, eps=None):
+def play_a_round(env, map_size, handles, models, rlmodels, print_every, train=True, render=False, eps=None):
     """play a ground and train"""
     env.reset()
     generate_map(env, map_size, handles)
@@ -133,18 +133,25 @@ def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=Tru
     print("===== sample =====")
     print("eps %.2f number %s" % (eps, nums))
     start_time = time.time()
-    while not done:
+    while not done:     # TODO: change this condition
+        print("step:", step_ct)
         # take actions for every model
         for i in range(n):
+            # if nums[i] != 0:
+            #     print("test0-i:", i)
             obs[i] = env.get_observation(handles[i])
             ids[i] = env.get_agent_id(handles[i])
             # let models infer action in parallel (non-blocking)
             models[i].infer_action(obs[i], ids[i], 'e_greedy', eps, block=False)
-
+        print("test1")
         for i in range(n):
+            # if nums[i] != 0:
+            print("here0", i)
             acts[i] = models[i].fetch_action()  # fetch actions (blocking)
+            print("here1", i)
             env.set_action(handles[i], acts[i])
-
+            print("here2", i)
+        print("test2")
         # simulate one step
         done = env.step()
 
@@ -166,6 +173,16 @@ def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=Tru
 
         # stat info
         nums = [env.get_num(handle) for handle in handles]
+        print("nums:", nums)
+
+        for i in range(int(n / 2)):
+            if nums[i] != 0:
+                done = False
+        if not done:
+            done = True
+            for i in range(int(n / 2), n):
+                if nums[i] != 0:
+                    done = False
 
         # clear dead agents
         env.clear_dead()
@@ -309,6 +326,7 @@ if __name__ == "__main__":
             step_batch_size = 10 * args.map_size * args.map_size * 0.04
             base_args = {'learning_rate': 1e-4}
             RLModels.append(RLModel)
+
             model_args.update(base_args)
             models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
         else:
@@ -320,6 +338,7 @@ if __name__ == "__main__":
                          'memory_size': 2 ** 20, 'learning_rate': 1e-4,
                          'target_update': target_update, 'train_freq': train_freq}
             RLModels.append(RLModel)
+
             model_args.update(base_args)
             models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
 
@@ -344,7 +363,7 @@ if __name__ == "__main__":
     for k in range(start_from, start_from + args.n_round):
         tic = time.time()
         eps = magent.utility.piecewise_decay(k, [0, 700, 1400], [1, 0.2, 0.05]) if not args.greedy else 0
-        loss, num, reward, value = play_a_round(env, args.map_size, handles, models,RLModels,
+        loss, num, reward, value = play_a_round(env, args.map_size, handles, models, RLModels,
                                                 train=args.train, print_every=50,
                                                 render=args.render or (k+1) % args.render_every == 0,
                                                 eps=eps)  # for e-greedy

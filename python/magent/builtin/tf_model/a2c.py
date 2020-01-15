@@ -207,14 +207,18 @@ class AdvantageActorCritic(TFBaseModel):
         """
         view, feature = raw_obs[0], raw_obs[1]
         n = len(view)
-
+        # print("view:", view)
+        # print("feature:", feature)
         policy = self.sess.run(self.policy, {self.input_view: view,
                                              self.input_feature: feature,
                                              self.num_agent: n})
         actions = np.arange(self.num_actions)
 
         ret = np.empty(n, dtype=np.int32)
+        print("n is", n)
         for i in range(n):
+            print("actions:", actions)
+            print('all policy', policy, "policy[i]:", policy[i])
             ret[i] = np.random.choice(actions, p=policy[i])
 
         return ret
