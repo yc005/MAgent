@@ -302,9 +302,9 @@ if __name__ == "__main__":
     for i in range(len(names)):
         model_args = {'eval_obs': eval_obs[i]}
         if i < len(names) / 2:
-            from magent.builtin.tf_model import AdvantageActorCritic
+            from magent.builtin.tf_model import COMA
 
-            RLModel = AdvantageActorCritic
+            RLModel = COMA
             # RLModels.append(RLModel)
             step_batch_size = 10 * args.map_size * args.map_size * 0.04
             base_args = {'learning_rate': 1e-4}

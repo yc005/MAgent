@@ -1,4 +1,4 @@
-""" advantage actor critic """
+""" counterfactual multi-agent policy gradient """
 import os
 
 import numpy as np
@@ -7,10 +7,10 @@ import tensorflow as tf
 from .base import TFBaseModel
 
 
-class AdvantageActorCritic(TFBaseModel):
+class COMA(TFBaseModel):
     def __init__(self, env, handle, name, learning_rate=1e-3,
                  batch_size=64, reward_decay=0.99, eval_obs=None,
-                 train_freq=1, value_coef=0.1, ent_coef=0.08, use_comm=False,
+                 train_freq=1, value_coef=0.1, ent_coef=0.08,
                  custom_view_space=None, custom_feature_space=None):
         """init a model
 
@@ -59,7 +59,6 @@ class AdvantageActorCritic(TFBaseModel):
         self.ent_coef = ent_coef         # coefficient of entropy in the total loss
 
         self.train_ct = 0
-        self.use_comm = use_comm
 
         # ======================= build network =======================
         with tf.name_scope(self.name):
@@ -76,54 +75,6 @@ class AdvantageActorCritic(TFBaseModel):
         self.feature_buf = np.empty((1,) + self.feature_space)
         self.action_buf = np.empty(1, dtype=np.int32)
         self.reward_buf = np.empty(1, dtype=np.float32)
-
-    def _commnet_block(self, n, hidden, skip, name, hidden_size):
-        """a block of CommNet
-
-        Parameters
-        ----------
-        n: int
-            number of agent
-        hidden: tf.tensor
-            hidden layer input
-        skip: tf.tensor
-            skip connection
-        name: str
-        hidden_size: int
-        """
-        mask = (tf.ones((n, n)) - tf.eye(n))
-        mask *= tf.where(n > 1, 1.0 / (tf.cast(n, tf.float32) - 1.0), 0)
-
-        C = tf.get_variable(name + "_C", shape=(hidden_size, hidden_size))
-        H = tf.get_variable(name + "_H", shape=(hidden_size, hidden_size))
-
-        message = tf.matmul(mask, hidden)
-
-        return tf.tanh(tf.matmul(message, C) + tf.matmul(hidden, H) + skip)
-
-    def _commnet(self, n, dense, hidden_size, n_step=2):
-        """ CommNet Learning Multiagent Communication with Backpropagation by S. Sukhbaatar et al. NIPS 2016
-
-        Parameters
-        ----------
-        n: int
-            number of agent
-        hidden_size: int
-        n_step: int
-            communication step
-
-        Returns
-        -------
-        h: tf.tensor
-            hidden units after CommNet
-        """
-        skip = dense
-
-        h = dense
-        for i in range(n_step):
-            h = self._commnet_block(n, h, skip, "step_%d" % i, hidden_size)
-
-        return h
 
     def _create_network(self, view_space, feature_space):
         """define computation graph of network
@@ -152,9 +103,6 @@ class AdvantageActorCritic(TFBaseModel):
 
         dense = tf.concat([h_view, h_emb], axis=1)
         dense = tf.layers.dense(dense, units=hidden_size[0] * 2, activation=tf.nn.relu)
-
-        if self.use_comm:
-            dense = self._commnet(num_agent, dense, dense.shape[-1].value)
 
         policy = tf.layers.dense(dense, units=self.num_actions, activation=tf.nn.softmax)
         policy = tf.clip_by_value(policy, 1e-10, 1-1e-10)
