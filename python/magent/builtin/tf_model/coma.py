@@ -41,7 +41,7 @@ class COMA(TFBaseModel):
         custom_view_space: tuple
             customized feature space
         """
-        TFBaseModel.__init__(self, env, handle, name, "tfa2c")
+        TFBaseModel.__init__(self, env, handle, name, "tfcoma")
         # ======================== set config  ========================
         self.env = env
         self.handle = handle
@@ -60,15 +60,15 @@ class COMA(TFBaseModel):
 
         self.train_ct = 0
 
-        # ======================= build network =======================
-        with tf.name_scope(self.name):
-            self._create_network(self.view_space, self.feature_space)
-
         # init tensorflow session
         config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
         self.sess.run(tf.global_variables_initializer())
+
+        # ======================= build network =======================
+        with tf.name_scope(self.name):
+            self._create_network(self.view_space, self.feature_space)
 
         # init training buffers
         self.view_buf = np.empty((1,) + self.view_space)
@@ -99,23 +99,33 @@ class COMA(TFBaseModel):
         flatten_view = tf.reshape(input_view, [-1, np.prod([v.value for v in input_view.shape[1:]])])
         h_view = tf.layers.dense(flatten_view, units=hidden_size[0], activation=tf.nn.relu)
 
-        h_emb = tf.layers.dense(input_feature,  units=hidden_size[0], activation=tf.nn.relu)
+        h_feature = tf.layers.dense(input_feature,  units=hidden_size[0], activation=tf.nn.relu)
+        reshaped_action = tf.reshape(action, [-1, 1])
+        reshaped_action = tf.to_float(reshaped_action)
+        h_action = tf.layers.dense(reshaped_action, units=hidden_size[0], activation=tf.nn.relu)
 
-        dense = tf.concat([h_view, h_emb], axis=1)
+        dense = tf.concat([h_feature, h_action], axis=1)
         dense = tf.layers.dense(dense, units=hidden_size[0] * 2, activation=tf.nn.relu)
 
-        policy = tf.layers.dense(dense, units=self.num_actions, activation=tf.nn.softmax)
+        policy = tf.layers.dense(h_view, units=self.num_actions, activation=tf.nn.softmax)
         policy = tf.clip_by_value(policy, 1e-10, 1-1e-10)
-        value = tf.layers.dense(dense, units=1)
-        value = tf.reshape(value, (-1,))
-        advantage = tf.stop_gradient(reward - value)
+        Q = tf.layers.dense(dense, units=self.num_actions)
+        # Q = tf.reshape(value, (-1,))
+        A = tf.zeros(num_agent)
+
+        for agent in range(num_agent.eval(session=self.sess)):
+            A[agent] = Q[agent][int(self.action[agent])]
+            u_copy = tf.identity(self.action)
+            for u in range(self.num_actions):
+                u_copy[agent] = u
+                A[agent] -= policy[agent][u] * Q[agent][u]
 
         action_mask = tf.one_hot(action, self.num_actions)
 
         log_policy = tf.log(policy + 1e-6)
         log_prob = tf.reduce_sum(log_policy * action_mask, axis=1)
-        pg_loss = -tf.reduce_mean(advantage * log_prob)
-        vf_loss = self.value_coef * tf.reduce_mean(tf.square(reward - value))
+        pg_loss = -tf.reduce_mean(A * log_prob)
+        vf_loss = self.value_coef * tf.reduce_mean(tf.square(reward - Q))
         neg_entropy = self.ent_coef * tf.reduce_mean(tf.reduce_sum(policy * log_policy, axis=1))
         total_loss = pg_loss + vf_loss + neg_entropy
 
@@ -133,7 +143,7 @@ class COMA(TFBaseModel):
         self.reward     = reward
         self.num_agent  = num_agent
 
-        self.policy, self.value = policy, value
+        self.policy, self.Q_value = policy, Q
         self.train_op = train_op
         self.pg_loss, self.vf_loss, self.reg_loss = pg_loss, vf_loss, neg_entropy
         self.total_loss = total_loss

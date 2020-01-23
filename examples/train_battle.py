@@ -10,6 +10,11 @@ import argparse
 import time
 import logging as log
 import math
+import os
+# os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2'
+# # 只显示 warning 和 Error
+os.environ["TF_CPP_MIN_LOG_LEVEL"]='3'
+# 只显示 Error
 
 import numpy as np
 
@@ -138,6 +143,7 @@ def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=Tru
         for i in range(n):
             obs[i] = env.get_observation(handles[i])
             ids[i] = env.get_agent_id(handles[i])
+            # print("the ", i, "id th id is, ", ids[i], type(ids), type(ids[i]), type(ids[i][0]))
             # let models infer action in parallel (non-blocking)
             models[i].infer_action(obs[i], ids[i], 'e_greedy', eps, block=False)
 
@@ -302,10 +308,12 @@ if __name__ == "__main__":
     for i in range(len(names)):
         model_args = {'eval_obs': eval_obs[i]}
         if i < len(names) / 2:
+            # from magent.builtin.tf_model import AdvantageActorCritic
+            #
+            # RLModel = AdvantageActorCritic
             from magent.builtin.tf_model import COMA
 
             RLModel = COMA
-            # RLModels.append(RLModel)
             step_batch_size = 10 * args.map_size * args.map_size * 0.04
             base_args = {'learning_rate': 1e-4}
             RLModels.append(RLModel)
@@ -315,7 +323,6 @@ if __name__ == "__main__":
             from magent.builtin.tf_model import DeepQNetwork
 
             RLModel = DeepQNetwork
-            # RLModels.append(RLModel)
             base_args = {'batch_size': batch_size,
                          'memory_size': 2 ** 20, 'learning_rate': 1e-4,
                          'target_update': target_update, 'train_freq': train_freq}
