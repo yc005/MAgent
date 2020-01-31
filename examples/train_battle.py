@@ -1,6 +1,6 @@
-# v1.5.1
-# Random vs COMA
-# right is COMA, left is Random
+# v1.5.2
+# A2C vs COMA
+# right is COMA, left is A2C
 
 """
 Train battle, two models in two processes
@@ -327,11 +327,14 @@ if __name__ == "__main__":
             model_args.update(base_args)
             models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
         else:
-            from magent.builtin.tf_model import Random
+            from magent.builtin.tf_model import AdvantageActorCritic
 
-            RLModel = Random
+            RLModel = AdvantageActorCritic
+            step_batch_size = 10 * args.map_size * args.map_size * 0.04
+            base_args = {'learning_rate': 1e-4}
             RLModels.append(RLModel)
-            models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel))
+            model_args.update(base_args)
+            models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
 
 
     # load if
