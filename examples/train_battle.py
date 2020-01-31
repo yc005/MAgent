@@ -1,6 +1,6 @@
-# v1.4.3
-# a2c vs DQN
-# right is a2c, left is dqn
+# v1.5.1
+# Random vs COMA
+# right is COMA, left is Random
 
 """
 Train battle, two models in two processes
@@ -21,6 +21,8 @@ import numpy as np
 import magent
 
 from magent.builtin.tf_model import AdvantageActorCritic
+from magent.builtin.tf_model import Random
+from magent.builtin.tf_model import DeepQNetwork
 
 
 def load_config(map_size):
@@ -90,22 +92,6 @@ def generate_map(env, map_size, handles):
     init_num = map_size * map_size * 0.02
     gap = 3
 
-    # left
-    n = init_num
-    side = int(math.sqrt(n)) * 2
-    pos_troops = []
-    pos_tanks = []
-    pos_flag = 0
-    for x in range(width//2 - gap - side, width//2 - gap - side + side, 2):
-        for y in range((height - side)//2, (height - side)//2 + side, 2):
-            if pos_flag % 6 != 0:
-                pos_troops.append([x, y, 0])
-            else:
-                pos_tanks.append([x, y, 0])
-            pos_flag += 1
-    env.add_agents(handles[l_troopsID], method="custom", pos=pos_troops)
-    env.add_agents(handles[l_tanksID], method="custom", pos=pos_tanks)
-
     # right
     n = init_num
     side = int(math.sqrt(n)) * 2
@@ -122,8 +108,24 @@ def generate_map(env, map_size, handles):
     env.add_agents(handles[r_troopsID], method="custom", pos=pos_troops)
     env.add_agents(handles[r_tanksID], method="custom", pos=pos_tanks)
 
+    # left
+    n = init_num
+    side = int(math.sqrt(n)) * 2
+    pos_troops = []
+    pos_tanks = []
+    pos_flag = 0
+    for x in range(width//2 - gap - side, width//2 - gap - side + side, 2):
+        for y in range((height - side)//2, (height - side)//2 + side, 2):
+            if pos_flag % 6 != 0:
+                pos_troops.append([x, y, 0])
+            else:
+                pos_tanks.append([x, y, 0])
+            pos_flag += 1
+    env.add_agents(handles[l_troopsID], method="custom", pos=pos_troops)
+    env.add_agents(handles[l_tanksID], method="custom", pos=pos_tanks)
 
-def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=True, render=False, eps=None):
+
+def play_a_round(env, map_size, handles, models, rlmodels, print_every, train=True, render=False, eps=None):
     """play a ground and train"""
     env.reset()
     generate_map(env, map_size, handles)
@@ -223,13 +225,15 @@ def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=Tru
 
         # train models in parallel
         for i in range(n):
-            if rlmodels[i] != AdvantageActorCritic and rlmodels[i] != COMA:
+            if rlmodels[i] == DeepQNetwork:
                 models[i].train(print_every=1000, block=False)
+            if rlmodels[i] == Random:
+                pass
             else:
                 total_loss_list, value[i] = models[i].train(1000)
                 total_loss[i] = total_loss_list[1]
         for i in range(n):
-            if rlmodels[i] != AdvantageActorCritic and rlmodels[i] != COMA:
+            if rlmodels[i] == DeepQNetwork:
                 total_loss[i], value[i] = models[i].fetch_train()
 
         train_time = time.time() - start_time
@@ -323,15 +327,11 @@ if __name__ == "__main__":
             model_args.update(base_args)
             models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
         else:
-            from magent.builtin.tf_model import DeepQNetwork
+            from magent.builtin.tf_model import Random
 
-            RLModel = DeepQNetwork
-            base_args = {'batch_size': batch_size,
-                         'memory_size': 2 ** 20, 'learning_rate': 1e-4,
-                         'target_update': target_update, 'train_freq': train_freq}
+            RLModel = Random
             RLModels.append(RLModel)
-            model_args.update(base_args)
-            models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel, **model_args))
+            models.append(magent.ProcessingModel(env, handles[i], names[i], 20000+i, 1000, RLModel))
 
 
     # load if
@@ -340,7 +340,8 @@ if __name__ == "__main__":
         start_from = args.load_from
         print("load ... %d" % start_from)
         for model in models:
-            model.load(savedir, start_from)
+            if model != Random:
+                model.load(savedir, start_from)
     else:
         start_from = 0
 
@@ -354,7 +355,7 @@ if __name__ == "__main__":
     for k in range(start_from, start_from + args.n_round):
         tic = time.time()
         eps = magent.utility.piecewise_decay(k, [0, 700, 1400], [1, 0.2, 0.05]) if not args.greedy else 0
-        loss, num, reward, value = play_a_round(env, args.map_size, handles, models,RLModels,
+        loss, num, reward, value = play_a_round(env, args.map_size, handles, models, RLModels,
                                                 train=args.train, print_every=50,
                                                 render=args.render or (k+1) % args.render_every == 0,
                                                 eps=eps)  # for e-greedy
@@ -366,7 +367,8 @@ if __name__ == "__main__":
         if (k + 1) % args.save_every == 0 and args.train:
             print("save model... ")
             for model in models:
-                model.save(savedir, k)
+                if model != Random:
+                    model.save(savedir, k)
 
     # send quit command
     for model in models:
