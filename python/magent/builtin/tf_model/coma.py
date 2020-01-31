@@ -49,7 +49,6 @@ class COMA(TFBaseModel):
         self.view_space = custom_view_space or env.get_view_space(handle)
         self.feature_space = custom_feature_space or env.get_feature_space(handle)
         self.num_agent = env.get_num(handle)
-        print("num_agent:", self.num_agent)
         self.num_actions  = env.get_action_space(handle)[0]
         self.reward_decay = reward_decay
 
@@ -117,8 +116,8 @@ class COMA(TFBaseModel):
 
         for agent in range(self.num_agent):
             agent_mask = tf.one_hot(agent, self.num_agent)
-            print("num_agent:", self.num_agent)
-            print("shape of Q[agent]:", Q[agent].shape, "shape of agent_mask:", agent_mask.shape)
+            # print("num_agent:", self.num_agent)
+            # print("shape of Q[agent]:", Q[agent].shape, "shape of agent_mask:", agent_mask.shape)
             A[agent] = tf.reduce_sum(Q[agent] * agent_mask, axis=1)
             u_copy = tf.identity(action)
             for u in range(self.num_actions):
@@ -130,7 +129,7 @@ class COMA(TFBaseModel):
         log_policy = tf.log(policy + 1e-6)
         log_prob = tf.reduce_sum(log_policy * action_mask, axis=1)
         pg_loss = -tf.reduce_mean(A * log_prob)
-        vf_loss = self.value_coef * tf.reduce_mean(tf.square(reward - Q))
+        vf_loss = self.value_coef * tf.reduce_mean(tf.square(reward - tf.reduce_max(Q)))
         neg_entropy = self.ent_coef * tf.reduce_mean(tf.reduce_sum(policy * log_policy, axis=1))
         total_loss = pg_loss + vf_loss + neg_entropy
 
@@ -148,7 +147,7 @@ class COMA(TFBaseModel):
         self.reward     = reward
         self.num_agent  = num_agent
 
-        self.policy, self.Q_value = policy, Q
+        self.policy, self.value = policy, tf.reduce_max(Q)
         self.train_op = train_op
         self.pg_loss, self.vf_loss, self.reg_loss = pg_loss, vf_loss, neg_entropy
         self.total_loss = total_loss
@@ -219,10 +218,11 @@ class COMA(TFBaseModel):
 
             r = np.array(r)
             keep = self.sess.run(self.value, feed_dict={
-                self.input_view: [v[-1]],
+                self.input_view:    [v[-1]],
                 self.input_feature: [f[-1]],
-                self.num_agent: 1
-            })[0]
+                self.num_agent:     1,
+                self.action:        [a[-1]]
+            })
             for i in reversed(range(m)):
                 keep = keep * gamma + r[i]
                 r[i] = keep

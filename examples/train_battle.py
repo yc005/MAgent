@@ -20,6 +20,9 @@ import numpy as np
 
 import magent
 
+from magent.builtin.tf_model import AdvantageActorCritic
+
+
 def load_config(map_size):
     gw = magent.gridworld
     cfg = gw.Config()
@@ -220,13 +223,13 @@ def play_a_round(env, map_size, handles, models,rlmodels, print_every, train=Tru
 
         # train models in parallel
         for i in range(n):
-            if rlmodels[i] != AdvantageActorCritic:
+            if rlmodels[i] != AdvantageActorCritic and rlmodels[i] != COMA:
                 models[i].train(print_every=1000, block=False)
             else:
                 total_loss_list, value[i] = models[i].train(1000)
                 total_loss[i] = total_loss_list[1]
         for i in range(n):
-            if rlmodels[i] != AdvantageActorCritic:
+            if rlmodels[i] != AdvantageActorCritic and rlmodels[i] != COMA:
                 total_loss[i], value[i] = models[i].fetch_train()
 
         train_time = time.time() - start_time
