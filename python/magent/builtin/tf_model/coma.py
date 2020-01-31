@@ -48,6 +48,8 @@ class COMA(TFBaseModel):
         self.name = name
         self.view_space = custom_view_space or env.get_view_space(handle)
         self.feature_space = custom_feature_space or env.get_feature_space(handle)
+        self.num_agent = env.get_num(handle)
+        print("num_agent:", self.num_agent)
         self.num_actions  = env.get_action_space(handle)[0]
         self.reward_decay = reward_decay
 
@@ -60,15 +62,15 @@ class COMA(TFBaseModel):
 
         self.train_ct = 0
 
+        # ======================= build network =======================
+        with tf.name_scope(self.name):
+            self._create_network(self.view_space, self.feature_space)
+
         # init tensorflow session
         config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
         self.sess.run(tf.global_variables_initializer())
-
-        # ======================= build network =======================
-        with tf.name_scope(self.name):
-            self._create_network(self.view_space, self.feature_space)
 
         # init training buffers
         self.view_buf = np.empty((1,) + self.view_space)
@@ -113,9 +115,12 @@ class COMA(TFBaseModel):
         # Q = tf.reshape(value, (-1,))
         A = tf.zeros(num_agent)
 
-        for agent in range(num_agent.eval(session=self.sess)):
-            A[agent] = Q[agent][int(self.action[agent])]
-            u_copy = tf.identity(self.action)
+        for agent in range(self.num_agent):
+            agent_mask = tf.one_hot(agent, self.num_agent)
+            print("num_agent:", self.num_agent)
+            print("shape of Q[agent]:", Q[agent].shape, "shape of agent_mask:", agent_mask.shape)
+            A[agent] = tf.reduce_sum(Q[agent] * agent_mask, axis=1)
+            u_copy = tf.identity(action)
             for u in range(self.num_actions):
                 u_copy[agent] = u
                 A[agent] -= policy[agent][u] * Q[agent][u]
