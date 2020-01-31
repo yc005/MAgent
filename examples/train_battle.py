@@ -339,8 +339,8 @@ if __name__ == "__main__":
     if args.load_from is not None:
         start_from = args.load_from
         print("load ... %d" % start_from)
-        for model in models:
-            if model != Random:
+        for idx, model in enumerate(models):
+            if RLModels[idx] != Random:
                 model.load(savedir, start_from)
     else:
         start_from = 0
@@ -366,8 +366,8 @@ if __name__ == "__main__":
         # save models
         if (k + 1) % args.save_every == 0 and args.train:
             print("save model... ")
-            for model in models:
-                if model != Random:
+            for idx, model in enumerate(models):
+                if RLModels[idx] != Random:
                     model.save(savedir, k)
 
     # send quit command
